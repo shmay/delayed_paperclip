@@ -25,13 +25,17 @@ module DelayedPaperclip
     end
 
     def enqueue(instance_klass, instance_id, attachment_name)
-      processor.enqueue_delayed_paperclip(instance_klass, instance_id, attachment_name)
+      if PgTools.search_path.to_s =~ /user/
+        raise 'search_path does not contain a schema'
+      else
+        account_id = PgTools.search_path.to_s.match(/\d+/)[0].to_i
+        processor.enqueue_delayed_paperclip(instance_klass, account_id, instance_id, attachment_name)
+      end
     end
 
-    def process_job(instance_klass, instance_id, attachment_name)
-      instance_klass.constantize.find(instance_id).
-        send(attachment_name).
-        process_delayed!
+    def process_job(instance_klass, account_id, instance_id, attachment_name)
+      PgTools.set_search_path account_id
+      instance_klass.constantize.find(instance_id).send(attachment_name).process_delayed!
     end
 
   end
